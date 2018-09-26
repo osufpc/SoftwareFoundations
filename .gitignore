@@ -2,3 +2,5 @@ volume1/*.pdf
 volume2/*.pdf
 volume3/*.pdf
 volume4/*.pdf
+
+volume4/qc/common
