@@ -3,6 +3,7 @@
 Require Import Coq.Bool.Bool.
 Require Import Coq.Strings.String.
 Require Import Coq.Arith.Arith.
+Require Import Coq.Arith.PeanoNat.
 Require Import Omega.
 Require Import List. Import ListNotations.
 Local Open Scope string.
@@ -150,8 +151,17 @@ Compute (show 42).
 (** **** Exercise: 1 star (showNatBool)  *)
 (** Write a [Show] instance for pairs of a nat and a bool. *)
 
-(* FILL IN HERE *)
-(** [] *)
+Definition string_nat_bool (p : nat * bool) : string :=
+  match p with 
+  | (n, b) => "(" ++ show n ++ "," ++ show b ++ ")"
+  end.
+
+Instance ShowNatBool : Show (nat * bool) := 
+  {
+   show := string_nat_bool
+  }.
+
+Compute (show (2,true)).
 
 (** Next, we can define functions that use the overloaded function
     [show] like this: *)
@@ -238,8 +248,29 @@ Instance eqNat : Eq nat :=
     checking equality makes perfect sense.  Write an [Eq] instance for
     this type. *)
 
-(* FILL IN HERE *)
-(** [] *)
+(**
+"how am I supposed to say that the input is the same?"
+*)
+   
+(*Instance eqBoolArrowBool : Eq (bool -> bool) :=
+  {
+   eqb b1 b2 :=
+    let a := b1 x in 
+    let c := b2 y in
+     eqb a c && eqb x y
+  }.
+
+ fun (b c : bool -> bool) =>
+       match (b _), (c _) with 
+         | true, true => true
+         | false, false => true
+         | true, false => false
+         | false, true => false
+       end
+  }.
+Proof.
+Admitted.
+*)
 
 (* ================================================================= *)
 (** ** Parameterized Instances: New Typeclasses from Old *)
@@ -287,8 +318,41 @@ Instance showList {A : Type} `{Show A} : Show (list A) :=
 (** Write an [Eq] instance for lists and [Show] and [Eq] instances for
     the [option] type constructor. *)
 
-(* FILL IN HERE *)
-(** [] *)
+Fixpoint eqListAux {A : Type} `{Eq A} (l1 l2 : list A) : bool := 
+    match l1, l2 with 
+    | nil, nil => true
+    | nil, _ => false
+    | _, nil => false 
+    | cons h1 t1, cons h2 t2 => andb (eqb h1 h2) (eqListAux t1 t2)
+    end.
+
+
+Instance eqList {A : Type} `{Eq A} : Eq (list A) := 
+  {
+   eqb := eqListAux
+  }.
+
+
+
+Instance showOption {A : Type} `{Show A} : Show (option A) :=
+  {
+   show o := 
+    match o with
+    | Some a => show a 
+    | None => ""
+    end
+  }.
+
+Instance eqOption {A : Type} `{Eq A} : Eq (option A) := 
+  {
+   eqb o1 o2 := 
+    match o1, o2 with 
+    | Some a1, Some a2 => eqb a1 a2
+    | None, None => true
+    | _, _ => false
+    end
+  }.
+
 
 (** **** Exercise: 3 stars, optional (boolArrowA)  *)
 (** Generalize your solution to the [boolArrowBool] exercise to build
@@ -296,7 +360,7 @@ Instance showList {A : Type} `{Show A} : Show (list A) :=
     itself is an [Eq] type.  Show that it works for [bool->bool->nat]. *)
 
 (* FILL IN HERE *)
-(** [] *)
+(** "will do when I figure out the problem with the first exercise!!!!!!" *)
 
 (* ================================================================= *)
 (** ** Class Hierarchies *)
@@ -353,20 +417,58 @@ Definition max {A: Type} `{Eq A} `{Ord A} (x y : A) : A :=
 
 (** **** Exercise: 1 star (missingConstraintAgain)  *)
 (** What does Coq say if the [Ord] class constraint is left out of the
-    definition of [max]?  What about the [Eq] class constraint? *)
+    definition of [max]? 
+===>
+Unable to satisfy the following constraints:
+In environment:
+A : Type
+H : Eq A
+x, y : A
+
+?H : "Eq A"
+
+?Ord : "Ord A"
+
+
+ What about the [Eq] class constraint? it'd be fine!*)
 (** [] *)    
 
 (** **** Exercise: 3 stars (ordMisc)  *)
 (** Define [Ord] instances for options and pairs. *)
 
-(* FILL IN HERE *)
-(** [] *)
+Instance optionOrd {A : Type} `{Ord A} : Ord (option A) := 
+  {
+   le o1 o2 :=
+    match o1, o2 with 
+    | None, None => true
+    | Some a1, Some a2 => le a1 a2
+    | None, _ => true
+    | _, _ => false
+    end
+  }.
+
+Instance pairOrd {A B : Type} `{Ord A} `{Ord B} : Ord (A * B) :=
+  {
+   le p1 p2 := 
+    let (a1,b1) := p1 in
+    let (a2,b2) := p2 in
+    andb (le a1 a2) (le b1 b2)
+  }.
 
 (** **** Exercise: 3 stars (ordList)  *)
 (** For a little more practice, define an [Ord] instance for lists. *)
 
-(* FILL IN HERE *)
-(** [] *)
+Fixpoint listOrdAux {A : Type} `{Ord A} (l1 l2 : list A) : bool :=
+  match l1, l2 with
+  | nil, nil => true
+  | cons h1 t1, cons h2 t2 => andb (le h1 h2) (listOrdAux t1 t2)
+  | _, _ => false
+  end.
+
+Instance listOrd {A : Type} `{Ord A} : Ord (list A) := 
+  {
+   le := listOrdAux
+  }.
 
 (* ################################################################# *)
 (** * How It Works *)
@@ -447,6 +549,17 @@ Definition showOne2 `{_ : Show A} (a : A) : string :=
 Definition showOne3 `{H : Show A} (a : A) : string :=
   "The value is " ++ show a.
 
+Print showOne3.
+(***
+===>
+showOne3 = 
+fun (A : Type) (H : Show A) (a : A) => "The value is " ++ show a
+     : forall A : Type, Show A -> A -> string
+
+Arguments A, H are implicit and maximally inserted
+Argument scopes are [type_scope _ _]
+***)
+
 (** The advantage of the latter form is that it gives a name that can
     be used, in the body, to explicitly refer to the supplied evidence
     for [Show A].  This can be useful when things get complicated and
@@ -459,6 +572,17 @@ Definition showOne3 `{H : Show A} (a : A) : string :=
 
 Definition showOne4 `{Show} a : string :=
   "The value is " ++ show a.
+
+Print showOne4.
+(**
+===>
+showOne4 = 
+fun (A : Type) (H : Show A) (a : A) => "The value is " ++ show a
+     : forall A : Type, Show A -> A -> string
+
+Arguments A, H are implicit and maximally inserted
+Argument scopes are [type_scope _ _]
+**)
 
 (** If we ask Coq to print the arguments that are normally implicit,
     we see that all these definitions are exactly the same
@@ -496,7 +620,7 @@ Definition max1 `{Ord A} (x y : A) :=
     arguments instead of just the one, [A], that we wrote?  Because
     [Ord]'s arguments are maximally inserted!) *)
 
-Set Printing Implicit.
+Set Printing Implicit. (**option shift I*)
 Print max1.
 (* ==>
      max1 = 
@@ -504,7 +628,10 @@ Print max1.
          if @le A H H0 x y then y else x
 
    : forall (A : Type) (H : Eq A), 
-       @Ord A H -> A -> A -> A    
+       @Ord A H -> A -> A -> A
+
+Arguments A, H, H0 are implicit and maximally inserted
+Argument scopes are [type_scope _ _ _ _]
 *)
 
 Check Ord.
@@ -526,6 +653,15 @@ Proof. intros. omega. Qed.
 
 Check commutativity_property.
 
+(**
+===>
+commutativity_property
+     : ?x + ?y = ?y + ?x
+where
+?x : [ |- nat]
+?y : [ |- nat]
+**)
+
 (** The previous examples have all shown implicit generalization being
     used to fill in forall binders.  It will also create [fun]
     binders, when this makes sense: *)
@@ -537,6 +673,15 @@ Definition implicit_fun := `{x + y}.
     inserted (as can be seen if we print out its definition)... *)
 
 Print implicit_fun.
+
+(**
+===>
+implicit_fun = fun x y : nat => x + y
+     : nat -> nat -> nat
+
+Arguments x, y are implicit and maximally inserted
+Argument scopes are [nat_scope nat_scope]
+**)
 
 (** ... so we will need to use @ to actually apply the function: *)
 
@@ -556,6 +701,13 @@ Compute (@implicit_fun 2 3).
 
 Definition implicit_fun1 := `(x + y).
 Print implicit_fun1.
+(**
+===>
+implicit_fun1 = fun x y : nat => x + y
+     : nat -> nat -> nat
+
+Argument scopes are [nat_scope nat_scope]
+**)
 Compute (implicit_fun1 2 3).
 
 (* ================================================================= *)
@@ -586,11 +738,27 @@ Record Point :=
 
 Check (Build_Point 2 4).
 
+(**
+===>
+{| px := 2; py := 4 |}
+     : Point
+**)
+
 (** Or we can use more familar record syntax, which allows us to name
     the fields and write them in any order: *)
 
 Check {| px := 2; py := 4 |}.
+(**
+===>
+{| px := 2; py := 4 |}
+     : Point
+**)
 Check {| py := 4; px := 2 |}.
+(**
+===>
+{| px := 2; py := 4 |}
+     : Point
+**)
 
 (** We can also access fields of a record using conventional "dot notation" 
     (with slightly clunky concrete syntax): *)
@@ -667,8 +835,8 @@ Print showNat.
     projections, which in turn are just functions that select a
     particular argument of a one-constructor [Inductive] type. *)
 
-Set Printing All.
 Print show.
+Set Printing All. (**option shift L*)
 (* ==>
     show = 
       fun (A : Type) (Show0 : Show A) =>
@@ -694,7 +862,12 @@ Unset Printing All.
 Definition eg42 := show 42.
 
 Set Printing Implicit.
-Print eg42.
+Print eg42. 
+(**
+===>
+eg42 = @show nat showNat 42
+     : string
+*)
 Unset Printing Implicit.
 
 (** How does this happen? *)
@@ -714,7 +887,20 @@ Unset Printing Implicit.
     Show" in the output and have a look at the entries for [showNat]
     and [showPair]. *)
 
-(* Print HintDb typeclass_instances. *)
+Print HintDb typeclass_instances. 
+(**
+===>
+For Show ->   exact ShowNatBool(level 0, pattern Show (nat * bool), id 0)
+              exact showNat(level 0, pattern Show nat, id 0)
+              exact showPrimary(level 0, pattern Show primary, id 0)
+              exact showBool(level 0, pattern Show bool, id 0)
+              simple apply @showOption(level 1, pattern 
+              Show (option ?META1250), id 0)
+              simple apply @showList(level 1, pattern 
+              Show (list ?META1242), id 0)
+              simple apply @showPair(level 2, pattern 
+              Show (?META1226 * ?META1227), id 0) 
+***)
 (** [] *)
 
 (** We can see what's happening during the instance inference process
@@ -820,7 +1006,7 @@ Defined.
     needs one more line.) *)
 Instance eqdecBool'' : EqDec bool.
 Proof.
-  constructor.
+  constructor. (*"isn't this suppose to be apply eqb_eq????"*)
   intros x y. destruct x; destruct y; simpl; unfold iff; auto.
 Defined.
 
@@ -869,6 +1055,7 @@ Lemma trans3 : forall `{Transitive A R},
 Proof.
   intros.
   apply (transitivity x z w). apply (transitivity x y z).
+  (*apply H0, H1, H2.*)
   assumption. assumption. assumption. Defined.
 
 Class PreOrder (A : Type) (R : relation A) :=
@@ -881,7 +1068,28 @@ Class PreOrder (A : Type) (R : relation A) :=
 
 Lemma trans3_pre : forall `{PreOrder A R}, 
     `{R x y -> R y z -> R z w -> R x w}.
-Proof. intros. eapply trans3; eassumption. Defined.
+Proof. intros.
+(*
+"The tactic eapply behaves like apply but it does not fail when
+ no instantiations are deducible for some variables in the premises. 
+Rather, it turns these variables into existential variables which are 
+variables still to instantiate (see Existential variables). The 
+instantiation is intended to be found later in the proof."
+if it were apply you get:
+Cannot infer the implicit parameter z of trans3 whose type is
+"A" in environment:
+A : Type
+R : relation A
+H : PreOrder A R
+x, y, z, w : A
+H0 : R x y
+H1 : R y z
+H2 : R z w
+*)
+ eapply trans3; eassumption.
+(*"This tactic (eassumption) behaves like assumption but is able to 
+handle goals with existential variables."*)
+ Defined.
 
 (* ################################################################# *)
 (** * Some Useful Typeclasses *)
@@ -897,6 +1105,9 @@ Require Import ssreflect ssrbool.
 Print decidable.
 (* ==>
      decidable = fun P : Prop => {P} + {~ P}
+     : Prop -> Set
+
+Argument scope is [type_scope]
 *)
 
 (** ... where [{P} + {~ P}] is an "informative disjunction" of [P] and
@@ -918,11 +1129,17 @@ Class Dec (P : Prop) : Type :=
 
 Instance EqDec__Dec {A} `{H : EqDec A} (x y : A) : Dec (x = y).
 Proof.
+(*"very interesting proof!!!"*)
   constructor.
   unfold decidable.
   destruct (eqb x y) eqn:E.
+(*"the above tactic: destruct <term> eqn:<name>
+This behaves as destruct term but adds an equation between term 
+and the value that it takes in each of the possible cases."*)
   - left. rewrite <- eqb_eq. assumption.
-  - right. intros C. rewrite <- eqb_eq in C. rewrite E in C. inversion C.
+  - right. 
+    intros C. (*"interesting!! to prove (not P) you can instead prove: P -> False"*)
+    rewrite <- eqb_eq in C. rewrite E in C. inversion C.
 Defined.
 
 (** Similarly, we can lift decidability through logical operators like
@@ -932,7 +1149,12 @@ Instance Dec_conj {P Q} {H : Dec P} {I : Dec Q} : Dec (P /\ Q).
 Proof.
   constructor. unfold decidable.
   destruct H as [D]; destruct D;
-    destruct I as [D]; destruct D; auto;
+    destruct I as [D]; destruct D;
+(*"case by case proof:"
+  - left. split. apply p. apply q.
+  - right. intro. destruct H. contradiction.
+  - right. intro. destruct H. contradiction.*)
+ auto;
       right; intro; destruct H; contradiction.
 Defined.
 
@@ -940,13 +1162,27 @@ Defined.
 (** Give instance declarations showing that, if [P] and [Q] are
     decidable propositions, then so are [~P] and [P\/Q]. *)
 
-(* FILL IN HERE *)
-(** [] *)
+Instance Dec_disjunc {P Q} {H : Dec P} {I : Dec Q} : Dec (P \/ Q).
+Proof.
+  constructor. unfold decidable.
+  destruct H as [D]; destruct D;
+    destruct I as [D]; destruct D;
+    auto; right; intro; destruct H; contradiction.
+Defined.
+
+Instance Dec_neg {P} {H : Dec P} : Dec (~ P).
+Proof.
+  constructor. unfold decidable.
+  destruct H as [D]. destruct D.
+  auto. left; auto.
+Defined.
 
 (** **** Exercise: 4 stars (Dec_All)  *)
 (** The following function converts a list into a proposition claiming
     that every element of that list satiesfies some proposition
     [P]: *)
+
+(*"side note: True is the prop and true is the bool!!"*)
 
 Fixpoint All {T : Type} (P : T -> Prop) (l : list T) : Prop :=
   match l with
@@ -957,9 +1193,11 @@ Fixpoint All {T : Type} (P : T -> Prop) (l : list T) : Prop :=
 (** Create an instance of [Dec] for [All P l], given that [P a] is
     decidable for every [a]. *)
 
-(* FILL IN HERE *)
-(** [] *)
-
+(* "MAYBE LATER!!!!!!"
+Instance Dec_all {P}  {A : Type} {H: Dec (P A)} (l : list A) : Dec (All P l).
+Proof.
+Admitted.
+*)
 (** One reason for doing all this is that it makes it easy to move
     back and forth between the boolean and propositional worlds,
     whenever we know we are dealing with decidable propositions.
@@ -1183,11 +1421,19 @@ Definition foo x := if eqb x x then "Of course" else "Impossible".
 
     Right? *)
 
+
+Set Typeclasses Debug.
+
 Fail Check (foo true).
 (* ==>
+"this is actually what I got:"
+The term "true" has type "bool" while it is expected to have type "nat".
+"IDEAS???"
+
      The command has indeed failed with message:
      The term "true" has type "bool" while it is expected 
        to have type "bool -> bool". *)
+Unset Typeclasses Debug.
 
 (** Huh?! *)
 
@@ -1261,6 +1507,13 @@ Compute (show (Baz 42)).
     To remove things, use [Remove Hints]: *)
 
 Remove Hints baz1 baz2 : typeclass_instances.
+
+Compute (show (Baz 42)).
+(**
+===>
+     = (let (show) := ?Show in show) (Baz 42)
+     : string
+**)
 
 (** To add them back (or to add arbitrary constants that have the
     right type to be intances -- i.e., their type ends with an applied
@@ -1441,8 +1694,100 @@ Compute e3.
     a state of great peril: If we happen to ask for an instance that
     doesn't exist, the search procedure will diverge. *)
 
-(* 
+
+Set Typeclasses Debug.
 Definition e4 : list nat := mymap false.
+
+
+===>
+1: looking for (MyMap bool (list nat)) without backtracking
+1.1: simple eapply @MyMap_trans on (MyMap bool (list nat)), 2 subgoal(s)
+1.1-1 : (MyMap bool ?B)
+1.1-1: looking for (MyMap bool ?B) with backtracking
+1.1-1.1: exact MyMap1 on (MyMap bool ?B), 0 subgoal(s)
+1.1-2 : (MyMap nat (list nat))
+1.1-2: looking for (MyMap nat (list nat)) without backtracking
+1.1-2.1: simple eapply @MyMap_trans on (MyMap nat (list nat)), 2 subgoal(s)
+1.1-2.1-1 : (MyMap nat ?B)
+1.1-2.1-1: looking for (MyMap nat ?B) with backtracking
+1.1-2.1-1.1: exact MyMap2 on (MyMap nat ?B), 0 subgoal(s)
+1.1-2.1-2 : (MyMap string (list nat))
+1.1-2.1-2: looking for (MyMap string (list nat)) without backtracking
+1.1-2.1-2.1: simple eapply @MyMap_trans on
+(MyMap string (list nat)), 2 subgoal(s)
+1.1-2.1-2.1-1 : (MyMap string ?B)
+1.1-2.1-2.1-1: looking for (MyMap string ?B) with backtracking
+1.1-2.1-2.1-1.1: simple eapply @MyMap_trans on (MyMap string ?B), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1 : (MyMap string ?B0)
+1.1-2.1-2.1-1.1-1: looking for (MyMap string ?B0) with backtracking
+1.1-2.1-2.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B0), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1 : (MyMap string ?B1)
+1.1-2.1-2.1-1.1-1.1-1: looking for (MyMap string ?B1) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B1), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1 : (MyMap string ?B2)
+1.1-2.1-2.1-1.1-1.1-1.1-1: looking for (MyMap string ?B2) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B2), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B3)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1: looking for (MyMap string ?B3) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B3), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B4)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1: looking for (MyMap string ?B4) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B4), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B5)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for (MyMap string ?B5) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B5), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B6)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B6) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B6), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B7)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B7) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B7), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B8)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B8) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B8), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B9)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B9) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B9), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : (MyMap string ?B10)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B10) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B10), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : 
+(MyMap string ?B11)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B11) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B11), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : 
+(MyMap string ?B12)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B12) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B12), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : 
+(MyMap string ?B13)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1: looking for 
+(MyMap string ?B13) with backtracking
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1: simple eapply @MyMap_trans on
+(MyMap string ?B13), 2 subgoal(s)
+1.1-2.1-2.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1.1-1 : 
+(MyMap string ?B14)
+Unset Typeclasses Debuge.
 *)
 
 (** **** Exercise: 1 star (nonterm)  *)
