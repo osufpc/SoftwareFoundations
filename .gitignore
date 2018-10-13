@@ -4,3 +4,8 @@ volume3/*.pdf
 volume4/*.pdf
 
 volume4/qc/common
+
+volume4/qc/*.aux
+volume4/qc/*.glob
+volume4/qc/*.crashcoqide
+volume4/qc/*.vo
