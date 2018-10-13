@@ -248,28 +248,28 @@ Instance eqNat : Eq nat :=
     checking equality makes perfect sense.  Write an [Eq] instance for
     this type. *)
 
-(**
-"how am I supposed to say that the input is the same?"
-*)
    
-(*Instance eqBoolArrowBool : Eq (bool -> bool) :=
+Instance eqBoolArrowBool : Eq (bool -> bool) :=
   {
-   eqb b1 b2 :=
+   eqb := fun (b1 b2 : (bool -> bool)) =>
+          if (eqb (b1 true) (b2 true)) && (eqb (b1 false) (b2 false))
+          then true
+          else false   
+  }.
+
+(* "prev. attempts:"
+eqb b1 b2 :=
     let a := b1 x in 
     let c := b2 y in
      eqb a c && eqb x y
-  }.
-
  fun (b c : bool -> bool) =>
-       match (b _), (c _) with 
+       match (b true), (c true) with 
          | true, true => true
          | false, false => true
          | true, false => false
          | false, true => false
        end
   }.
-Proof.
-Admitted.
 *)
 
 (* ================================================================= *)
@@ -359,9 +359,18 @@ Instance eqOption {A : Type} `{Eq A} : Eq (option A) :=
     an equality instance for any type of the form [bool->A], where [A]
     itself is an [Eq] type.  Show that it works for [bool->bool->nat]. *)
 
-(* FILL IN HERE *)
-(** "will do when I figure out the problem with the first exercise!!!!!!" *)
+Instance eqBoolArrowA {A : Type} `{Eq A} : Eq (bool -> A) :=
+  {
+   eqb := fun (b1 b2 : (bool -> A)) =>
+          if (eqb (b1 true) (b2 true)) && (eqb (b1 false) (b2 false))
+          then true
+          else false   
+  }.
 
+(**
+"if you wanted to say: Eq (A -> B) you'd need to define the functional 
+extensionality as axiom since coq doesn't support it"
+*)
 (* ================================================================= *)
 (** ** Class Hierarchies *)
 
