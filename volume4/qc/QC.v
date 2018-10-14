@@ -34,7 +34,16 @@ Check returnGen.
 (** 
 
      ===> returnGen : ?A -> G ?A 
+where
+?A : [ |- Type]
+
 *)
+
+Sample (returnGen 12).
+(**
+"am I supposed to see some output from this?!?!?"
+"yes, when you compile the code!!"
+**)
 
 (** We can see how it behaves by using the [Sample] command, which
     supplies its generator argument with several different random
@@ -55,6 +64,10 @@ Check bindGen.
 (**
 
      ===> bindGen : G ?A -> (?A -> G ?B) -> G ?B 
+where
+?A : [ |- Type]
+?B : [ |- Type]
+
 *) 
 
 (** Naturally, the implementation of [bindGen] must take care
@@ -112,7 +125,21 @@ Print ChoosableFromInterval.
 (** **** Exercise: 1 star, optional (cfi)  *)
 (** Print out the full definition of [ChoosableFromInterval].  Can you
     understand what it means? *)
-(** [] *)    
+(** 
+===>
+Record ChoosableFromInterval (A : Type) : Type := Build_ChoosableFromInterval
+  { super : OrdType A;
+    randomR : A * A -> RandomSeed -> A * RandomSeed;
+    randomRCorrect : forall a a1 a2 : A,
+                     is_true (leq a1 a2) ->
+                     is_true (leq a1 a && leq a a2) <->
+                     (exists seed : RandomSeed, fst (randomR (a1, a2) seed) = a) }
+
+For ChoosableFromInterval: Argument scope is [type_scope]
+For Build_ChoosableFromInterval: Argument scopes are [type_scope _ function_scope
+                                   function_scope]
+
+ *)    
 
 (* ================================================================= *)
 (** ** Lists *)
@@ -127,6 +154,10 @@ Check listOf.
 (**
 
      ===> listOf : G ?A -> G (list ?A) 
+where
+?A : [ |- Type]
+
+
 *)
 
 (* Sample (listOf (choose (0,4))). *)
@@ -162,6 +193,9 @@ Check vectorOf.
 (**
 
      ===> vectorOf : nat -> G ?A -> G (list ?A) 
+where
+?A : [ |- Type]
+
 *)
 
 (* Sample (vectorOf 3 (choose (0,4))). *)
@@ -238,6 +272,9 @@ Check elems_.
 (**
 
      ===> elems_ : ?A -> list ?A -> G ?A 
+where
+?A : [ |- Type]
+
 *)
 
 Definition genColor' : G color :=
@@ -323,6 +360,9 @@ Check oneOf_.
 (**
 
      ===> oneOf_ : G ?A -> list (G ?A) -> G ?A 
+where
+?A : [ |- Type]
+
 *)
 
 (** This combinator takes a default generator and a list of
@@ -415,6 +455,9 @@ Check freq_.
 (**
 
      ===> freq_ : G ?A -> seq (nat * G ?A) -> G ?A 
+where
+?A : [ |- Type]
+
 *)
 
 (** As with [oneOf], we usually use a convenient derived notation,
@@ -505,6 +548,29 @@ Fixpoint mirror {A : Type} (t : Tree A) : Tree A :=
 
 Instance eq_dec_tree (t1 t2 : Tree nat) : Dec (t1 = t2) := {}.
 Proof. dec_eq. Defined.
+
+Print dec_eq.
+
+(**
+===>
+dec_eq = 
+fun (A : Type) (Dec_Eq0 : Dec_Eq A) => let (dec_eq) := Dec_Eq0 in dec_eq
+     : forall A : Type, Dec_Eq A -> forall x y : A, ssrbool.decidable (x = y)
+
+Arguments A, Dec_Eq are implicit and maximally inserted
+Argument scopes are [type_scope _ _ _]
+**)
+
+Check dec_eq.
+
+(**
+===>
+dec_eq
+     : forall x y : ?A, ssrbool.decidable (x = y)
+where
+?A : [ |- Type]
+?Dec_Eq : [ |- Dec_Eq ?A]
+**)
 
 (** We expect that mirroring a tree twice should yield the original
     tree.  *)
@@ -837,12 +903,12 @@ Sample (CheckerPlayground4.forAll
     tests and returning their results in a list, it runs tests only
     until the first counterexample is found. *)
 
-(*
+
 QuickChick
   (forAll
      (genTreeSized' 3 (choose(0,3)))
      faultyMirrorP).
-*)
+
 (**
 
      ===>
