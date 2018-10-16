@@ -518,16 +518,36 @@ Fixpoint genTreeSized' {A} (sz : nat) (g : G A) : G (Tree A) :=
 (** **** Exercise: 2 stars (genListSized)  *)
 (** Write a sized generator for lists, following [genTreeSized']. *)
 
-(* FILL IN HERE *)
-(** [] *)
+Fixpoint genListSized {A} (sz : nat) (g : G A) : G (list A) :=
+  match sz with
+    | O => ret nil 
+    | S sz' =>
+        freq [ (1,  ret nil) ;
+               (sz, liftM2 cons g (genListSized sz' g))
+             ]
+  end.
+
 
 (** **** Exercise: 3 stars (genColorOption)  *)
 (** Write a custom generator for values of type [option color].  Make
     it generate [None] about 1/10th of the time, and make it generate
     [Some Red] three times as often as the other colors. *)
 
-(* FILL IN HERE *)
-(** [] *)
+Print option.
+Print list.
+
+Definition genColorOption (sz : nat) (g : G color) : G (option color) :=
+  match sz with 
+  | O => ret None
+  | S sz' => freq [(1, ret None);
+                   (3*sz, ret (Some Red));
+                   (sz, ret (Some Green));
+                   (sz, ret (Some Blue));
+                   (sz, ret (Some Yellow))
+                  ]
+  end.
+  
+Sample (genColorOption 3 genColor').
 
 (* ================================================================= *)
 (** ** Checkers *)
