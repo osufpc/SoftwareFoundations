@@ -997,7 +997,18 @@ Print shrinkList.
             {| shrink := shrinkListAux shrink |}
        : forall A : Type, Shrink A -> Shrink (list A) 
 
+Arguments A, H are implicit and maximally inserted
+Argument scopes are [type_scope _]
+
+
 *)
+
+(**
+{| ... |}
+is record syntax, remember that:
+Analogously, Instance declarations become record values.
+read in the previous chapter.
+**)
 
 Print shrinkListAux.
 (**
@@ -1014,6 +1025,23 @@ Print shrinkListAux.
                 map (fun x' : A => x' :: xs) (shr x))
            end
        : forall A : Type, (A -> list A) -> list A -> list (list A) 
+
+"just a bit difference: {struct l}"
+shrinkListAux = 
+fix shrinkListAux (A : Type) (shr : A -> list A) (l : list A) {struct l} :
+  list (list A) :=
+  match l with
+  | [] => []
+  | x :: xs =>
+      ((xs :: map (fun xs' : list A => x :: xs') (shrinkListAux A shr xs)) ++
+       map (fun x' : A => x' :: xs) (shr x))%list
+  end
+     : forall A : Type, (A -> list A) -> list A -> list (list A)
+
+Argument A is implicit and maximally inserted
+Argument scopes are [type_scope function_scope list_scope]
+
+
 *)
 
 (** An empty list cannot be shrunk, as there is no smaller list.  A
@@ -1053,19 +1081,25 @@ Instance shrinkTree {A} `{Shrink A} : Shrink (Tree A) :=
     combinator, a variant of [forAll] that takes a shrinker as an
     additional argument, to test properties like [faultyMirrorP]. *)
 
-(*
+
   QuickChick 
        (forAllShrink 
           (genTreeSized' 5 (choose (0,5))) 
           shrink
           faultyMirrorP). 
-*)
+
 (**
 
      ===> 
        Node (0) (Leaf) (Node (0) (Leaf) (Leaf))
 
        *** Failed! After 1 tests and 8 shrinks 
+
+====>
+QuickChecking (forAllShrink (genTreeSized' 5 (choose (0, 5))) shrink faultyMirrorP)
+Node (0) (Leaf) (Node (0) (Leaf) (Leaf))
+*** Failed after 1 tests and 5 shrinks. (0 discards)
+
 *)
 
 (** We now get a quite simple counterexample (in fact, one of two
